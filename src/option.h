@@ -1,59 +1,34 @@
 #ifndef OPTION_H
 #define OPTION_H
 
-#define OPTION(LongName, ShortName, Description, OptionInput, Callback, UserData) \
+#define OPTION(LongName, ShortName, Description, ArgumentName, OptionType, \
+               OptionInput, Callback, UserData) \
 { \
     .long_name = LongName, \
     .short_name = ShortName, \
     .description = Description, \
+    .argument_name = ArgumentName, \
+    .option_type = OptionType, \
     .option_input = OptionInput, \
     .callback = Callback, \
-    .user_data = UserData, \
+    .user_data = (void *)UserData, \
 }
 
-#define OPTION_USAGE(ProgramName) \
-{ \
-    .long_name = "usage", \
-    .short_name = '\0', \
-    .description = "print a consolidated argument listing", \
-    .option_input = NO_OPTION_INPUT, \
-    .callback = &options_usage, \
-    .user_data = (void *)ProgramName, \
-}
+#define OPTION_END OPTION(NULL, '\0', NULL, NULL, END_OPTION_TYPE, \
+                          NO_OPTION_INPUT, NULL, NULL)
 
-#define OPTION_HELP(ProgramName) \
-{ \
-    .long_name = "help", \
-    .short_name = 'h', \
-    .description = "print this message", \
-    .option_input = NO_OPTION_INPUT, \
-    .callback = &options_help, \
-    .user_data = (void *)ProgramName, \
-}
+struct option_list; // forward declaration for callback typedef
 
-#define OPTION_VERSION(ProgramVersion) \
-{ \
-    .long_name = "version", \
-    .short_name = 'v', \
-    .description = "print version information", \
-    .option_input = NO_OPTION_INPUT, \
-    .callback = &options_version, \
-    .user_data = (void *)ProgramVersion, \
-}
+typedef int (*option_callback_t)(struct option_list *options, int option,
+                                 char *argument);
+typedef int (*option_error_callback_t)(struct option_list *options, int option,
+                                       char *argument, int number);
 
-#define OPTION_LAST \
-{ \
-    .long_name = NULL, \
-    .short_name = '\0', \
-    .description = NULL, \
-    .option_input = NO_OPTION_INPUT, \
-    .callback = NULL, \
-    .user_data = NULL, \
-}
-
-typedef struct option option_t;
-
-typedef int (*option_callback_t)(const option_t *option, const char *argument);
+typedef enum option_type {
+    END_OPTION,
+    REQUIRED_OPTION,
+    OPTIONAL_OPTION,
+} option_type_t;
 
 typedef enum option_input {
     NO_OPTION_INPUT,
@@ -66,20 +41,21 @@ typedef struct option {
     char *long_name;
     char short_name;
     char *description;
+    char *argument_name;
+    option_type_t option_type;
     option_input_t option_input;
     option_callback_t callback;
     void *user_data;
 } option_t;
 
 typedef struct option_list {
-    option_callback_t unrecognized_option_callback;
+    option_error_callback_t unknown_option_callback;
+    option_error_callback_t missing_argument_callback;
     option_t *options;
 } option_list_t;
 
-int options_parse(const option_list_t *options, const int argc, const char *argv[]);
-
-int options_usage(const option_t *option, const char *argument);
-int options_help(const option_t *option, const char *argument);
-int options_version(const option_t *option, const char *argument);
+int options_parse(option_list_t *options, int argc, char *argv[]);
+void options_print(options_list_t *options);
+void options_print_inline(options_list_t *options);
 
 #endif

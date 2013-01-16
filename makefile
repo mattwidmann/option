@@ -9,8 +9,19 @@ all: option.o
 clean:
 	rm -f *.o
 
+.PHONY: check
+check: test
+	# valgrind
+	# clang --static-analysis
+
+.PHONY: profile
+profile: benchmark
+	# gprof
+	# callgrind
+
 .PHONY: test
 test: option.o
+	$(CC) $(CFLAGS) option.o src/test_option.c -o test
 
 %.o: src/%.c src/%.h
 	$(CC) $(CFLAGS) -c src/$*.c
