@@ -21,7 +21,7 @@ profile: benchmark
 
 .PHONY: test
 test: option.o
-	$(CC) $(CFLAGS) option.o src/test_option.c -o test
+	$(CC) $(CFLAGS) option.o test/option_test.c -o test
 
 %.o: src/%.c src/%.h
 	$(CC) $(CFLAGS) -c src/$*.c
