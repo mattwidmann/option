@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 {
     char *vers = "1.2.3";
 
-    option_t list[] = {OPTION_HELP, OPTION_USAGE, OPTION("arg", 'a', "takes an argument", SINGLE_OPTION_INPUT, &arg, NULL), OPTION_LAST};
+    option_t list[] = {OPTION("arg", 'a', "takes an argument", "argument", REQUIRED_OPTION_TYPE, SINGLE_OPTION_INPUT, &arg, NULL), OPTION_END};
     option_list_t option_list = {.unknown_option_callback = &unknown, .missing_argument_callback = &missing, .options = list};
     options_parse(&option_list, argc, argv);
 }

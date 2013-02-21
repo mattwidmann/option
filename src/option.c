@@ -164,7 +164,7 @@ static int parse_input(option_list_t *options, int option_index, int argc,
 void options_print(option_list_t *options)
 {
     int option_index = 0;
-    option_t *option = options->options[option_index];
+    option_t *option = &options->options[option_index];
 
     while (option->callback != NULL) {
     }

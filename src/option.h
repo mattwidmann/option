@@ -25,9 +25,9 @@ typedef int (*option_error_callback_t)(struct option_list *options, int option,
                                        char *argument, int number);
 
 typedef enum option_type {
-    END_OPTION,
-    REQUIRED_OPTION,
-    OPTIONAL_OPTION,
+    END_OPTION_TYPE,
+    REQUIRED_OPTION_TYPE,
+    OPTIONAL_OPTION_TYPE,
 } option_type_t;
 
 typedef enum option_input {
@@ -55,7 +55,7 @@ typedef struct option_list {
 } option_list_t;
 
 int options_parse(option_list_t *options, int argc, char *argv[]);
-void options_print(options_list_t *options);
-void options_print_inline(options_list_t *options);
+void options_print(option_list_t *options);
+void options_print_inline(option_list_t *options);
 
 #endif
