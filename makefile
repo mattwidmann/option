@@ -7,7 +7,8 @@ all: option.o
 
 .PHONY: clean
 clean:
-	rm -f *.o
+	rm -f *.o option_test
+	rm -rf *.dSYM
 
 .PHONY: check
 check: test
@@ -21,7 +22,7 @@ profile: benchmark
 
 .PHONY: test
 test: option.o
-	$(CC) $(CFLAGS) option.o test/option_test.c -o test
+	$(CC) $(CFLAGS) option.o test/option_test.c -o option_test
 
 %.o: src/%.c src/%.h
 	$(CC) $(CFLAGS) -c src/$*.c
