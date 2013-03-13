@@ -6,14 +6,14 @@
 
 int unknown(char * argument, void * data)
 {
-    printf("unrecognized %d: %s\n", *(int *)data, argument);
+    printf("unrecognized: %s\n", argument);
 
     return 0;
 }
 
 int literal(char * argument, void * data)
 {
-    printf("literal %d: %s\n", *(int *)data, argument);
+    printf("literal: %s\n", argument);
 
     return 0;
 }

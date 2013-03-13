@@ -25,4 +25,5 @@ test: option.o
 	$(CC) $(CFLAGS) option.o test/option_test.c -o option_test
 
 %.o: src/%.c src/%.h
-	$(CC) $(CFLAGS) -c src/$*.c
+	$(CC) $(CFLAGS) -c src/$*.c -o $*.o
+

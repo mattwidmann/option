@@ -15,7 +15,7 @@ int options_process(option_list_t * options, int argc, char * * argv)
             if (argv[i][1] == '-') { // long option
                 if (argv[i][2] == '\0') { // rest of arguments are literal
                     while (++i < argc) {
-                        if (options->on_literal_argument(argv[i], &i))
+                        if (options->on_literal_argument(argv[i], options->user_data))
                             return i;
                     }
 
@@ -29,7 +29,7 @@ int options_process(option_list_t * options, int argc, char * * argv)
 
             // couldn't parse an option, but started with '-'
             if (!new_index) {
-                if (options->on_unknown_option(argv[i], &i))
+                if (options->on_unknown_option(argv[i], options->user_data))
                     return i;
 
                 new_index = i + 1;
@@ -37,7 +37,7 @@ int options_process(option_list_t * options, int argc, char * * argv)
 
             i = new_index - 1;;
         } else { // literal argument
-            if (options->on_literal_argument(argv[i], &i))
+            if (options->on_literal_argument(argv[i], options->user_data))
                 return i;
         }
     }
