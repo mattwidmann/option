@@ -9,13 +9,13 @@ static int parse_long(option_list_t * options, int argc, char * * argv, int i);
 int options_process(option_list_t * options, int argc, char * * argv)
 {
     // skip first argument
-    for (int i = 1; i < argc; i++) {
+    for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') { // is an option
             int new_index;
             if (argv[i][1] == '-') { // long option
                 if (argv[i][2] == '\0') { // rest of arguments are literal
                     while (++i < argc) {
-                        if (options->on_literal_argument(argv[i], options->user_data))
+                        if (options->on_literal_argument(argv[i], &i))
                             return i;
                     }
 
@@ -29,13 +29,15 @@ int options_process(option_list_t * options, int argc, char * * argv)
 
             // couldn't parse an option, but started with '-'
             if (!new_index) {
-                if (options->on_unknown_option(argv[i], options->user_data))
+                if (options->on_unknown_option(argv[i], &i))
                     return i;
+
+                new_index = i + 1;
             }
 
-            i = new_index;
+            i = new_index - 1;;
         } else { // literal argument
-            if (options->on_literal_argument(argv[i], options->user_data))
+            if (options->on_literal_argument(argv[i], &i))
                 return i;
         }
     }
@@ -51,34 +53,35 @@ static int parse_short(option_list_t * options, int argc, char * * argv, int i)
     for (int j = 1; j < arg_len; j++) {
         // process rest of options in argument
         int option_index = -1;
-        for (int k = 0; options->options[i].on_option; ++i) {
+        for (int k = 0; options->options[k].on_option; ++k) {
             if (options->options[k].short_name == argv[i][j]) {
                 option_index = k;
             }
         }
 
         if (option_index == -1) { // unknown option
-            if (options->on_unknown_option(argv[i], options->user_data))
-                return i + 1;
-
-            continue;
+            return 0;
         }
 
         option_t * option = options->options + option_index;
-        char * argument = NULL;
 
         if (option->argument_name) { // option takes an argument
+            char * argument = NULL;
+
             if (j == (arg_len - 1)) { // this is the last flag in the argument
                 if (i + 1 < argc) { // the next argument exists
                     argument = argv[++i];
                 }
+            } else { // treat rest of argument as option's argument (-fargument)
+                argument = argv[i] + j + 1;
             }
 
-            // treat rest of argument as option's argument (-fargument)
-            argument = argv[i] + j + 1;
+            option->on_option(argument, option->user_data);
+            break;
+        } else {
+            option->on_option(NULL, option->user_data);
         }
 
-        option->on_option(argument, option->user_data);
     }
 
     return i + 1;

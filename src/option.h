@@ -1,6 +1,7 @@
 #ifndef OPTION_H
 #define OPTION_H
 
+// maybe also provide the argument that triggered the option?
 typedef int (*option_callback_t)(char * argument, void * user_data);
 
 typedef struct option {
@@ -27,7 +28,7 @@ void options_print(option_list_t * options);
 void options_print_inline(option_list_t * options);
 
 /* returns 0 on success, non-zero to indicate where error occurred in argument list */
-int options_parse(option_list_t *options, int argc, char * * argv);
+int options_process(option_list_t * options, int argc, char * * argv);
 
 #endif
 
