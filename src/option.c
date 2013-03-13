@@ -3,171 +3,134 @@
 #include <stdio.h>
 #include <string.h>
 
-static int option_for_short_argument(option_list_t *options, char flag);
-static int parse_input(option_list_t *options, int option, int argc,
-                       char *argv[], int i);
-static int parse_short_name(option_list_t *options, int argc, char *argv[],
-                            int i);
-static int parse_long_name(option_list_t *options, int argc, char *argv[],
-                           int i);
+static int parse_short(option_list_t * options, int argc, char * * argv, int i);
+static int parse_long(option_list_t * options, int argc, char * * argv, int i);
 
-#define CHECK_CALLBACK(Argument, Index) do { \
-    if (option->callback != NULL && \
-        option->callback(options, Index, Argument) == 0) return 0; } while (0)
-
-#define CHECK_ERROR_CALLBACK(Callback, Option) do { \
-    if (options->Callback != NULL && \
-        options->Callback(options, Option, argv[i], i) == 0) return 0; } \
-    while (0)
-
-int options_parse(option_list_t *options, int argc,
-                  char *argv[])
+int options_process(option_list_t * options, int argc, char * * argv)
 {
-    char *program_name = argv[0];
-
+    // skip first argument
     for (int i = 1; i < argc; i++) {
-        if (argv[i][0] == '-') {
-            int result;
-            if (argv[i][1] == '-') {
-                if (strlen(argv[i]) == 2) {
-                    // rest of arguments are literal
-                    return i + 1;
+        if (argv[i][0] == '-') { // is an option
+            int new_index;
+            if (argv[i][1] == '-') { // long option
+                if (argv[i][2] == '\0') { // rest of arguments are literal
+                    while (++i < argc) {
+                        if (options->on_literal_argument(argv[i], options->user_data))
+                            return i;
+                    }
+
+                    return 0;
                 }
 
-                result = parse_long_name(options, argc, argv, i);
-            } else {
-                result = parse_short_name(options, argc, argv, i);
+                new_index = parse_long(options, argc, argv, i);
+            } else { // short option
+                new_index = parse_short(options, argc, argv, i);
             }
 
-            if (result == 0) {
+            // couldn't parse an option, but started with '-'
+            if (!new_index) {
+                if (options->on_unknown_option(argv[i], options->user_data))
+                    return i;
+            }
+
+            i = new_index;
+        } else { // literal argument
+            if (options->on_literal_argument(argv[i], options->user_data))
                 return i;
-            }
-
-            i = result;
-        } else {
-            CHECK_ERROR_CALLBACK(unknown_option_callback, -1);
         }
     }
 
-    return argc;
+    return 0;
 }
 
-static int parse_short_name(option_list_t *options, int argc, char *argv[],
-                            int i)
+static int parse_short(option_list_t * options, int argc, char * * argv, int i)
 {
-    int argument_length = strlen(argv[i]);
+    int arg_len = strlen(argv[i]);
 
-    for (int j = 1; j < argument_length; j++) {
-        int option_index = option_for_short_argument(options, argv[i][j]);
-        if (option_index == -1) {
-            CHECK_ERROR_CALLBACK(unknown_option_callback, -1);
+    // skip leading '-'
+    for (int j = 1; j < arg_len; j++) {
+        // process rest of options in argument
+        int option_index = -1;
+        for (int k = 0; options->options[i].on_option; ++i) {
+            if (options->options[k].short_name == argv[i][j]) {
+                option_index = k;
+            }
+        }
+
+        if (option_index == -1) { // unknown option
+            if (options->on_unknown_option(argv[i], options->user_data))
+                return i + 1;
+
             continue;
         }
 
-        option_t *option = options->options + option_index;
-        if (j == (argument_length - 1)) {
-            if (option->option_input == SINGLE_OPTION_INPUT ||
-                option->option_input == OPTIONAL_OPTION_INPUT) {
-                // treat next option as possible argument
-                return parse_input(options, option_index, argc, argv, i);
+        option_t * option = options->options + option_index;
+        char * argument = NULL;
+
+        if (option->argument_name) { // option takes an argument
+            if (j == (arg_len - 1)) { // this is the last flag in the argument
+                if (i + 1 < argc) { // the next argument exists
+                    argument = argv[++i];
+                }
             }
 
-            CHECK_CALLBACK(NULL, option_index);
-        } else if (option->option_input == SINGLE_OPTION_INPUT) {
-            // treat rest of flag as argument (-fargument)
-            CHECK_CALLBACK(argv[i] + j + 1, option_index);
-            break;
-        // option takes no arguments
-        } else CHECK_CALLBACK(NULL, option_index);
+            // treat rest of argument as option's argument (-fargument)
+            argument = argv[i] + j + 1;
+        }
+
+        option->on_option(argument, option->user_data);
     }
 
-    return i;
+    return i + 1;
 }
 
-static int parse_long_name(option_list_t *options, int argc, char *argv[],
-                           int i)
+static int parse_long(option_list_t * options, int argc, char * * argv, int i)
 {
-    for (int j = 0; options->options[j].callback != NULL; j++) {
-        option_t *option = options->options + j;
-        if (option->long_name == NULL) {
+    for (int j = 0; options->options[j].on_option; j++) {
+        option_t * option = options->options + j;
+        if (!option->long_name) {
             continue;
         }
 
-        if (strcmp(option->long_name, argv[i] + 2) == 0) {
-            return parse_input(options, j, argc, argv, i);
+        int option_len = strlen(option->long_name);
+        int arg_len = strlen(argv[i] + 2);
+
+        // argument is smaller than the option or the two don't match
+        if (arg_len < option_len || strncmp(option->long_name, argv[i] + 2, option_len)) {
+            continue;
         }
 
-        // matches up to = and can take argument
-        if (strncmp(option->long_name, argv[i] + 2,
-                    strlen(option->long_name)) == 0 &&
-            argv[i][strlen(option->long_name) + 2] == '=' &&
-            (option->option_input == SINGLE_OPTION_INPUT ||
-             option->option_input == OPTIONAL_OPTION_INPUT)) {
-            // treat rest of option as argument (--option=argument)
-            CHECK_CALLBACK(argv[i] + strlen(option->long_name) + 3, j);
-            return i;
-        }
-    }
+        char * argument = NULL;
+        if (option->argument_name) {
+            if (arg_len != option_len) { // argument continues after the long name has matched
+                if (argv[i][option_len + 2] != '=') { // the first character of that continuation is not '='
+                    continue;
+                }
 
-    CHECK_ERROR_CALLBACK(unknown_option_callback, -1);
-
-    return i;
-}
-
-static int option_for_short_argument(option_list_t *options, char argument)
-{
-    for (int i = 0; options->options[i].callback != NULL; i++) {
-        if (options->options[i].short_name == argument) {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-static int parse_input(option_list_t *options, int option_index, int argc,
-                       char *argv[], int i)
-{
-    option_t *option = options->options + option_index;
-    int inputs_left = argc - (i + 1);
-    if (option->option_input == NO_OPTION_INPUT) {
-        CHECK_CALLBACK(NULL, option_index);
-    } else if (option->option_input == SINGLE_OPTION_INPUT) {
-        if (inputs_left > 0) {
-            CHECK_CALLBACK(argv[i + 1], option_index);
-            return i + 1;
-        }
-
-        CHECK_ERROR_CALLBACK(missing_argument_callback, option_index);
-    } else if (option->option_input == REST_OPTION_INPUT) {
-        if (inputs_left > 0) {
-            for (int j = i + 1; j < argc; j++) {
-                CHECK_CALLBACK(argv[j], option_index);
+                argument = argv[i] + option_len + 3;
+            } else {
+                if (i + 1 < argc) { // the next argument exists
+                    argument = argv[++i];
+                }
             }
-
-            return i + inputs_left;
         }
 
-        CHECK_ERROR_CALLBACK(missing_argument_callback, option_index);
-    } else if (option->option_input == OPTIONAL_OPTION_INPUT) {
-        if (inputs_left > 0 && argv[i + 1][0] != '-') {
-            CHECK_CALLBACK(argv[i + 1], option_index);
-            return i + 1;
-        }
-
-        CHECK_CALLBACK(NULL, option_index);
+        option->on_option(argument, option->user_data);
+        return i + 1;
     }
 
-    return i;
+    // no options matched
+    return 0;
 }
 
 void options_print(option_list_t *options)
 {
     int option_index = 0;
-    option_t *option = &options->options[option_index];
+    option_t * option = options->options + option_index;
 
-    while (option->callback != NULL) {
-    }
+    // while (option->callback != NULL) {
+        // return;
+    // }
 }
 
 void options_print_inline(option_list_t *options)
@@ -177,6 +140,7 @@ void options_print_inline(option_list_t *options)
     int option_index = 0;
     while (options_left) {
         option_index++;
+        return;
     }
     /* char *test = "grep [-abcdDEFGHhIiJLlmnOopqRSsUVvwxZ] [-A num] [-B num] [-C[num]] \ */
     /*       [-e pattern] [-f file] [--binary-files=value] [--color[=when]] \ */
