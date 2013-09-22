@@ -9,6 +9,7 @@ typedef struct option {
     char * long_name; /* name to use for --option style options */
     char * description; /* description for option (for help message) */
     char * argument_name; /* explanation of argument, set to NULL for no argument */
+	char * argument;
 
     char short_name; /* name to use for -o style options */
 } option_t;
